@@ -1,0 +1,335 @@
+---
+title: "gcxgclab: GCxGC Preprocessing and Analysis"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{gcxgclab: GCxGC Preprocessing and Analysis}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+
+<!-- badges: start -->
+
+<img src="../man/figures/gcxgclab_image.png" width="100%" />
+
+The goal of gcxgclab is to provide a comprehensive program for preprocessing and analysis of two dimensional gas chromatography data. It is equipped with functions for baseline correction, smoothing, peak identification, peak alignment, identification of EICs, Mass Spectra, targeted analysis, compound identification with NIST and non-targeted analysis, plus plotting and data visualization. 
+
+## Installation
+
+You can install the development version of gcxgclab from
+[CRAN](https://cran.r-project.org/) with:
+
+``` r
+install.packages("gcxgclab")
+```
+
+## Citation
+
+If using gcxgclab in your work, please cite us.
+
+Gamble, Stephanie & Granger, Caroline & Mannion, Joseph. gcxgclab: An R-package for two dimensional gas chromatography preprocessing and analysis. *in preparation*. 2024.
+
+## Example
+
+Provided here is an example of the work flow to fully process and analyze an example GCxGC sample.  
+  
+First, load the package.
+
+``` r
+library(gcxgclab)
+```
+
+Load the first file. This should be a cdf file containing the processed GCxGC sample data.  
+  
+Extract data from the file and create data frames for the total ion chromatogram (TIC) data and full mass and intensity data.
+
+``` r
+filename <- system.file('extdata','Sample1.cdf',package='gcxgclab')
+rt_frame <- extract_data(filename)
+```
+
+To visualize the data, graph a contour map of original, raw TIC data. The title may be changed to any string. The daata can be plotted in either 1 of 2 time dimensions. 2 is shown.
+
+``` r
+plot_chr(rt_frame, title='Raw Data', scale='linear', dim=2)
+```
+
+<img src="../man/figures/raw.png" width="50%" />
+
+For the scale of this data, it is useful to visualize with a contour plot in log base 10 of the TIC data. This is done by changing the scale input from linear to log (log is the default). 
+
+``` r
+plot_chr(rt_frame, title='Log Intensity', scale="log")
+```
+
+<img src="../man/figures/log.png" width="50%" />
+
+If desired, the phase may be shifted up or down. Shifting the phase in the negative direction (down) by 2 seconds.
+
+``` r
+shifted <- phase_shift(rt_frame, shift=-2)
+plot_chr(shifted, title='Shifted')
+```
+<img src="../man/figures/shifted.png" width="50%" />
+
+
+Performing Whittaker smoothing. Lambda=20 has been chosen for the smoothing coefficient (which is also the default value). Larger values of lambda indicate more smoothing. Lambda must be chosen between 0 and 1000. Plotting in log scale.
+
+``` r
+sm_frame <- smooth(rt_frame, lambda=20)
+plot_chr(sm_frame, title = 'Smoothed')
+```
+
+<img src="../man/figures/smoothed.png" width="50%" />
+
+Performing baseline correction. Gamma = 0.5 (which is also the default value), indicating a moderate amount of noise to be considered baseline. Gamma must be chosen between 0 and 1. 0 results in almost no data being subtracted to the baseline, and 1 results in a high amount of the data being subtracted to the baseline. Plotting in log scale.
+
+``` r
+frame <- bl_corr(sm_frame, gamma=0.5)
+plot_chr(frame, title = 'Baseline Corrected')
+```
+
+<img src="../man/figures/blc.png" width="50%" />
+
+It is helpful to identify peaks in the samples. There are two functions to locate the peaks. One finds the top N peaks, and the second finds all peaks above a given threshold.  
+  
+Finding the top 20 peaks in the sample. Then finding all peaks above an intensity of 100,000.
+``` r
+peaks <- top_peaks(frame$TIC_df, N=20)
+thrpeaks <- thr_peaks(frame$TIC_df, THR=100000)
+```
+
+Now to visualize these peaks. Ploting red circles over the highest 20 peaks on the chromatogram image.
+
+``` r
+plot_peak(peaks, frame, title="Top 20 Peaks")
+```
+
+<img src="../man/figures/top20a.png" width="50%" />
+
+Plot circles at the highest 20 peaks, size indicating the intensity.
+
+``` r
+plot_peakonly(peaks, title="Top 20 Peaks")
+```
+
+<img src="../man/figures/top20b.png" width="50%" />
+
+Ploting red circles over all peaks above 100,000 threshold on the chromatogram image.
+
+``` r
+plot_peak(thrpeaks, frame, title="Peaks Above 100,000")
+```
+
+<img src="../man/figures/thra.png" width="50%" />
+
+Plot circles at all peaks above 10,000 threshold, size indicating the intensity.
+
+``` r
+plot_peakonly(thrpeaks, title="Peaks Above 100,000")
+```
+
+<img src="../man/figures/thrb.png" width="50%" />
+
+Loading a second cdf file and performing smoothing and baseline correction for alignment to the first sample.
+
+``` r
+filename2 <- system.file('extdata','Sample2.cdf',package='gcxgclab')
+rt_frame2 <- extract_data(filename2)
+sm_frame2 <- smooth(rt_frame2, lambda=20)
+frame2 <- bl_corr(sm_frame2, gamma=0.5)
+
+peaks2 <- top_peaks(frame2$TIC_df, N=20)
+plot_peak(peaks2, frame, title="Top 20 Peaks, Sample 2")
+```
+
+<img src="../man/figures/top20_2.png" width="50%" />
+
+Loading a third cdf file and performing smoothing and baseline correction for alignment to the first sample.
+
+``` r
+filename3 <- system.file('extdata','Sample3.cdf',package='gcxgclab')
+rt_frame3 <- extract_data(filename3)
+sm_frame3 <- smooth(rt_frame3, lambda=20)
+frame3 <- bl_corr(sm_frame3, gamma=0.5)
+
+peaks3 <- top_peaks(frame3$TIC_df, N=20)
+plot_peak(peaks3, frame, title="Top 20 Peaks, Sample 3")
+```
+
+<img src="../man/figures/top20_3.png" width="50%" />
+
+Performing batch alignment to a reference sample. "Sample 1" is given as the reference sample. 
+This keeps all peaks from reference sample, then aligns corresponding peaks from each of the other samples, returns a list of data frames for each, keeping peak height unchanged, only coordinate shifted to align with reference peak.
+
+``` r
+aligned_list <- align(list(frame,frame2,frame3))
+for (i in 1:3){
+    print(plot_peak(aligned_list$peaks[[i]], aligned_list$data[[i]], title=paste("Aligned Sample", i)))
+  }
+```
+
+<img src="../man/figures/al1.png" width="50%" />
+<img src="../man/figures/al2.png" width="50%" />
+<img src="../man/figures/al3.png" width="50%" />
+
+In the analysis of this data, there are many times where fitting to a Gaussian curve is used. Fitting the highest peak in the sample to a 1D Gaussian curve. The area under the curve is calculated. Plot of points in blue and fitted curve in red.
+
+``` r
+peak_t <- c(peaks$'X'[1], peaks$'Y'[1])
+gaussfit <- gauss_fit(frame$TIC_df, peakcoord=peak_t)
+```
+
+    #> Area under curve = 2208363.21987165 u^2
+
+``` r
+plot_gauss(frame$TIC_df, gaussfit[[1]])
+```
+
+<img src="../man/figures/gauss1.png" width="50%" />
+
+Fitting the highest peak in the sample to a 2D Gaussian curve. The volume under the curve is calculated. Contour plot of the fitted curve.
+
+``` r
+gaussfit2 <- gauss2_fit(frame$TIC_df, peakcoord=peak_t)
+```
+
+    #> Volume under curve = 16457652.920234 u^3
+
+``` r
+plot_gauss2(frame$TIC_df, gaussfit2[[1]])
+```
+
+<img src="../man/figures/gauss2.png" width="50%" />
+
+Finding extracted ion chromatogram (EIC) for the specific masses of interest 141.9274 u. EIC visualization can be done in 1 or 2 dimensions.
+
+``` r
+eic <- find_eic(frame, MOI=141.9274)
+plot_eic(eic,dim=1)
+plot_eic(eic,dim=2)
+```
+
+<img src="../man/figures/eica.png" width="50%" />
+<img src="../man/figures/eicb.png" width="50%" />
+
+Performing batch EIC extraction on an input list of masses: 141.9274 u, 92.1397 u, and 78.1130 u.
+
+``` r
+MOIs <- c(141.9274, 92.1397, 78.1130)
+eics <- batch_eic(frame, MOIs=MOIs)
+for (i in 1:length(eics)){
+  print(plot_eic(eics[[i]], dim=1,
+        title=paste("EIC for MOI",MOIs[i])))}
+```
+
+<img src="../man/figures/eic1a.png" width="50%" /><img src="../man/figures/eic2a.png" width="50%" /><img src="../man/figures/eic3a.png" width="50%" />
+
+Finding mass spectral (MS) data at the highest peak in the TIC data. Plotting a line graph of the MS data.
+
+``` r
+mz <- find_ms(frame, t_peak=peaks$'T'[1])
+plot_ms(mz)
+```
+
+<img src="../man/figures/ms.png" width="50%" />
+
+Plotting the Kendrick Mass Defect of the mass spectrum data compared with CH_2 (compount mass = 14.01565 for CH_2 is default, can be specified to a different ion if desired).
+
+``` r
+plot_defect(mz,  compound_mass = 14.01565, title="Kendrick Mass Defect, CH_2")
+```
+
+<img src="../man/figures/kmsdf.png" width="50%" />
+
+Performing batch MS extraction on the highest 5 peaks in the TIC data.
+
+``` r
+mzs <- batch_ms(frame, t_peaks = peaks$'T'[1:3])
+for (i in 1:length(mzs)){
+  print(plot_ms(mzs[[i]], 
+        title=paste('Mass Spectrum of peak', i)))}
+```
+
+<img src="../man/figures/ms1.png" width="50%" /><img src="../man/figures/ms2.png" width="50%" /><img src="../man/figures/ms3.png" width="50%" />
+
+Identifying the compound of the highest TIC peak with the NIST MS database.   
+  
+Note, this only works if the user has a NIST MS Library license already purchased. First the NIST Library is loaded, which in this case is in seven different MSP files. Then comparing the MS data to the loaded NIST Library.
+
+``` r
+nistlist <-nist_list('NIST17_01.MSP','NIST17_02.MSP','NIST17_03.MSP','NIST17_04.MSP','NIST17_05.MSP','NIST17_06.MSP','NIST17_07.MSP')
+comp_nist(nistlist, mz)
+```
+
+    #> The best NIST match is Toluene, Formula: C7H8. 86.98% match.
+
+	#>                             Name Formula Index Percent Match
+	#> 1                    Toluene    C7H8  2724      86.98145
+	#> 2                    Toluene    C7H8  2726      80.48633
+	#> 3                    Toluene    C7H8  2720      77.81422
+	#> 4                    Toluene    C7H8  2721      76.94814
+	#> 5                    Toluene    C7H8  2723      73.52366
+	#> 6                    Toluene    C7H8  2725      71.89045
+	#> 7  Spiro[2,4]hepta-4,6-diene    C7H8  2744      71.35828
+	#> 8                    Toluene    C7H8  2722      70.21886
+	#> 9   Benzene, (butoxymethyl)- C11H16O 37871      69.14554
+	#> 10  Benzene, (butoxymethyl)- C11H16O 37868      69.07512
+	#> 10  Benzene, (butoxymethyl)- C11H16O 37868      69.07512
+
+Performing non-targeted analysis, identifying compound with the exact mass data. The minimum threshold for peaks is set to 0.05 (which is default).
+
+``` r
+masslist <- mass_list()
+non_targeted(masslist, mz, THR=0.05)
+```
+
+    #> The best mass solution found is C7H8.
+
+	#>     Compound     Mass 
+	#> 1       C7H8  	92.0626     
+	#> 2   C3H10NO2 	92.07115      
+	#> 3   C2H8N2O2 	92.05858      
+	#> 4  C2H12N2Si 	92.07697     
+	#> 5  C2H10NOSi 	92.05317     
+	#> 6      C6H6N 	92.05002     
+	#> 7   C2H10N3O 	92.08239      
+	#> 8    C4H12O2 	92.08373      
+	#> 9   C2H12Si2 	92.04775     
+	#> 10    C3H8O3 	92.04734     
+
+Performing targeted analysis to identify peak areas for MOIs at given retention times. MOIs = c(141.9274, 92.1397, 92.1397, 78.113) at corresponding retention times RTs = c(3.8273333, 9.111583, 13.782750, 18.5691167). The list of data and the list of MOIs are required inputs. The RTs are not required. If left blank, the program will identify the highest point and use that retention time. There are several other optional inputs. Window size (window_size input variable) may also be given, specified for each MOI/RT pair. A tolerance (tolerance input variable) may be given to specify a tolerance around the MOIs that is to be allowed. Default is 0.005. Lastly, a string may be input (images input variable) for the name of a pdf file where images will be saved. If left blank, plots will be printed, two for each MOI/RT pair: a plot of the entire EIC showing the peak of interest, and a zoomed in plot at the RT of interest.
+
+``` r
+targeted(list(frame,frame2,frame3), MOIs = c(141.9274, 92.1397, 92.1397, 78.113), RTs = c(3.8273333, 9.111583, 13.782750, 18.5691167),images=TRUE)
+```
+	#> MOI        |   141.9274    92.1397    92.1397     78.113
+	#> RT         |  3.8273333   9.111583   13.78275 18.5691167
+	#> ---------- | ---------- ---------- ---------- ----------
+	#> Sample 1   |  34.214245  181.62989    4.26959   10.63571
+	#> Sample 2   |   9.854254  48.751539         ND  14.603188
+	#> Sample 3   |   0.632451  43.737769         ND   8.710648
+
+Examples of plots that are displayed while running the targeted function. 
+
+<img src="../man/figures/ta1.png" width="50%" />
+<img src="../man/figures/ta2.png" width="50%" />
+  
+  
+  
+Contact <stephanie.gamble@srnl.doe.gov>
+  
+  
+  
+©2022 Battelle Savannah River Alliance, LLC
+  
+Notice: These data were produced by Battelle Savannah River Alliance, LLC under Contract No 89303321CEM000080 with the Department of Energy. During the period of commercialization or such other time period specified by DOE, the Government is granted for itself and others acting on its behalf a nonexclusive, paid-up, irrevocable worldwide license in this data to reproduce, prepare derivative works, and perform publicly and display publicly, by or on behalf of the Government. Subsequent to that period, the Government is granted for itself and others acting on its behalf a nonexclusive, paid-up, irrevocable worldwide license in this data to reproduce, prepare derivative works, distribute copies to the public, perform publicly and display publicly, and to permit others to do so. The specific term of the license can be identified by inquiry made to Contract or DOE. NEITHER THE UNITED STATES NOR THE UNITED STATES DEPARTMENT OF ENERGY, NOR ANY OF THEIR EMPLOYEES, MAKES ANY WARRANTY, EXPRESS OR IMPLIED, OR ASSUMES ANY LEGAL LIABILITY OR RESPONSIBILITY FOR THE ACCURACY, COMPLETENESS, OR USEFULNESS OF ANY DATA, APPARATUS, PRODUCT, OR PROCESS DISCLOSED, OR REPRESENTS THAT ITS USE WORLD NOT INFRINGE PRIVATELY OWNED RIGHTS.
+
+<!-- badges: end -->
