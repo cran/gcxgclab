@@ -8,6 +8,8 @@ plot_peak(
   peaks,
   data,
   title = "Intensity with Peaks",
+  xlab = "retention time 1",
+  ylab = "retention time 2",
   circlecolor = "red",
   circlesize = 5
 )
@@ -22,6 +24,12 @@ background GCxGC plot, created with plot_chr().}
 
 \item{title}{a \emph{string} object. Title placed at the top of the plot.
 Default title "Intensity with Peaks".}
+
+\item{xlab}{a \emph{string} object. Label for the x axis. Default is
+"retention time 1".}
+
+\item{ylab}{a \emph{string} object. Label for the y axis. Default is
+"retention time 2".}
 
 \item{circlecolor}{a \emph{string} object. The desired color of the circles
 which indicate the peaks. Default color red.}

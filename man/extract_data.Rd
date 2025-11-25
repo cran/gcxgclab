@@ -29,8 +29,8 @@ function \code{\link[ncdf4]{nc_open}} from ncdf4 package, then extracts the
 data and closes the cdf file using the implemented function
 \code{\link[ncdf4]{nc_close}} from ncdf4 package
 \insertCite{ncdf4}{gcxgclab}. It then returns a list of two data frames. The
-first is a dataframe of the TIC data, the output of create_df(). The second
-is a data frame of the full MS data, the output of mass_data().
+first is a dataframe of the TIC data,and The second is a data frame of the
+full MS data.
 }
 \examples{
 file <- system.file("extdata","sample1.cdf",package="gcxgclab")

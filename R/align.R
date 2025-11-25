@@ -19,6 +19,11 @@
 #' @param THR a \emph{float} object. Threshold for peak intensity. Should be a
 #' number between the baseline value and the highest peak intensity. Default
 #' is THR = 100000.
+#' @param use_ref_peak a \emph{boolean} object. Determines if an initial shift
+#' to a given reference peak, default is toluene, should be done before aligning
+#' all other peaks above given threshold THR. Default is TRUE.
+#' @param ref_peak a \emph{float} object. The m/z value of the reference peak
+#' for optional initial shift. Default is 92.1397 (toluene).
 #'
 #' @return A \emph{list} object. List of aligned data from each cdf file and a
 #' list of peaks that were aligned for each file.
@@ -36,43 +41,55 @@
 #' plot_peak(aligned$Peaks$S3,aligned$S3,title="Aligned Sample 3")
 #'
 #' @export
-align <- function(data_list, THR=100000){
-  # separating reference data to data to be aligned
+align <- function(data_list, THR=100000, use_ref_peak=TRUE, ref_peak=92.1397){
+
   ref_df <- data_list[[1]]$TIC_df
   ref_df$'Overall Time Index' <- ref_df$'Overall Time Index'/60
   data_list[[1]]$TIC_df$`Overall Time Index` <- data_list[[1]]$TIC_df$`Overall Time Index`/60
   ref_ms <- data_list[[1]]$MS_df
-  df_list <- list()
-  ms_list <- list()
-  for (i in 2:length(data_list)){
-    df_list <- append(df_list,list(data_list[[i]]$TIC_df))
-    df_list[[i-1]]$`Overall Time Index` <- df_list[[i-1]]$`Overall Time Index`/60
-    data_list[[i]]$TIC_df$`Overall Time Index` <- data_list[[i]]$TIC_df$`Overall Time Index`/60
-    ms_list <- append(ms_list,list(data_list[[i]]$MS_df))
+
+  df_list <- vector(mode="list", length=length(data_list)-1)
+  ms_list <- vector(mode="list", length=length(data_list)-1)
+
+  for (i in 1:(length(data_list)-1)){
+
+    df_list[[i]] <- data_list[[i+1]]$TIC_df
+
+
+    df_list[[i]]$`Overall Time Index` <- df_list[[i]]$`Overall Time Index`/60
+    data_list[[i+1]]$TIC_df$`Overall Time Index` <- data_list[[i+1]]$TIC_df$`Overall Time Index`/60
+    ms_list[[i]] <- data_list[[i+1]]$MS_df
   }
-  # finding peaks to align to
+
   ref_peaks <- thr_peaks(ref_df,THR)
   ref_y <- length(which(ref_df$'RT1'==ref_df$'RT1'[1]))
   ref_x <- length(ref_df$'RT1')/ref_y
   if (length(df_list)==0 | length(ms_list)==0){
     stop('Must provide at least one sample to be aligned to the reference.')
   }
-  aligned <- vector("list", (length(df_list)+2))
-  naming <- c('S1')
-  for (i in 1:length(df_list)){
-    naming <- append(naming, paste0('S',i+1))
+  if (length(df_list)!=length(ms_list)){
+    stop('Number of TIC data frames does not match the number of MS data frames.')
   }
+  aligned <- vector("list", (length(df_list)+2))
+
+  naming <- paste0('S', seq(1,length(df_list)+1, 1))
+
   aligned[[1]] <- list(ref_df,ref_ms)
   names(aligned[[1]])<- c('TIC_df','MS_df')
   names(aligned) <- c(naming, 'Peaks')
-  aligned$Peaks <- list(ref_peaks)
+  aligned$Peaks <- rep(list(ref_peaks), length(df_list)+1)
 
-  # aligning the toluene peak first
-  tol1 <- find_eic(data_list[[i]],92.1397,tolerance=10^(-3))
-  lt1 <- which(tol1$intensity_values==max(tol1$intensity_values))
-  ltt1 <- tol1$time_array[lt1]
+  if (use_ref_peak){
+    tol1 <- find_eic(data_list[[i]],ref_peak,tolerance=10^(-3))
+    lt1 <- which(tol1$intensity_values==max(tol1$intensity_values))
+    ltt1 <- tol1$time_array[lt1]
+  }
+  else {
+    ref_peak <- 0
+  }
 
   for (i in 1:length(df_list)){
+
     RT1 <- df_list[[i]]$RT1
     RT2 <- df_list[[i]]$RT2
     new_ms <- ms_list[[i]]
@@ -85,21 +102,26 @@ align <- function(data_list, THR=100000){
       stop(paste('Peak',i, 'cannot be aligned to the reference.
                            Dimensions do not match.'))
     }
-    # aligning toluene peak first, if peak is present
-    tol2 <- find_eic(data_list[[i+1]],92.1397,tolerance=10^(-3))
-    lt2 <- which(tol2$intensity_values==max(tol2$intensity_values))
-    ltt2 <- tol2$time_array[lt2]
-    if (ltt1>8.8 & ltt2>8.8 & ltt1<9.4 & ltt2<9.4){
-      df_list[[i]]<- phase_shift(data_list[[i+1]],(ltt1-ltt2))[[1]]
+
+    if (use_ref_peak){
+      tol2 <- find_eic(data_list[[i+1]],ref_peak,tolerance=10^(-3))
+      lt2 <- which(tol2$intensity_values==max(tol2$intensity_values))
+      ltt2 <- tol2$time_array[lt2]
+      if (ltt1>8.8 & ltt2>8.8 & ltt1<9.4 & ltt2<9.4){
+        df_list[[i]]<- phase_shift(data_list[[i+1]],(ltt1-ltt2))[[1]]
+      }
+    }
+    else{
+      df_list[[i]] <- data_list[[i+1]][[1]]
     }
 
-    # peaks to align to ref
+
     peaks <- thr_peaks(df_list[[i]],THR)
-    # finds closest peaks
     cp <- comp_peaks(ref_peaks,peaks)
     todel <- c()
-    # checking that peaks are the same compound, compare MS
+
     for (j in 1:length(cp$Tref)){
+
       utils::setTxtProgressBar(pb, round(10/length(cp$Tref)*j))
       ms_r <- find_ms(data_list[[1]],(cp$Tref[j]*60),tolerance=10^-3)
       ms_a <- find_ms(data_list[[i+1]],(cp$Tal[j]*60),tolerance =10^-3)
@@ -135,6 +157,7 @@ align <- function(data_list, THR=100000){
       ms_a2 <- ms_a2[ms_a2$Int>.1,]
 
       sum <- 0
+
       for (x in 1:length(ms_a2$MZ)){
         loc <- which(ms_r2$MZ==ms_a2$MZ[x])
         if (length(loc)>0){
@@ -144,6 +167,7 @@ align <- function(data_list, THR=100000){
           sum <- sum+ms_a2$Int[x]
         }
       }
+
       for (x in 1:length(ms_r2$MZ)){
         loc <- which(ms_a2$MZ==ms_r2$MZ[x])
         if (length(loc)>0){
@@ -153,31 +177,32 @@ align <- function(data_list, THR=100000){
           sum <- sum+ms_r2$Int[x]
         }
       }
+
       match_per <- 1-sum/(sum(ms_r2$Int)+sum(ms_a2$Int))
       if (match_per<.7){
         todel <- append(todel,j)
       }
-    } #end loop over j
+    }
 
     # remove peaks which do not have matching MS
     if (length(todel)>0){
       cp2 <- cp[-todel,]
-    }
-    else{
+    } else{
       cp2 <- cp
     }
+    if (length(cp2)==0){
+      stop("No peaks match with sufficient spacial and MS confidence.")
+    }
     frame <- df_list[[i]]
-    # performing the alignment
     for (x in 1:length(cp2[,1])){
       utils::setTxtProgressBar(pb,round(10+89/length(cp2[,1])*x))
       j <- length(cp2[,1])-x+1
       if (abs(cp2$Tref[j]-cp2$Tal[j])>0.0001){
         # Shift TIC
         suppressWarnings(
-        g <- gauss_fit(df_list[[i]], c(cp2$Xal[j],cp2$Yal[j]))
+          g <- gauss_fit(df_list[[i]], c(cp2$Xal[j],cp2$Yal[j]))
         )
         cat <- abs(g[[2]][3])
-        # calculating how much data to shift and the distance
         l1 <- which.min(abs(cp2$Tref[j]-4*cat-df_list[[i]]$`Overall Time Index`))
         l2 <- which.min(abs(cp2$Tref[j]+4*cat-df_list[[i]]$`Overall Time Index`))
         if (is.na(l2)){
@@ -191,36 +216,30 @@ align <- function(data_list, THR=100000){
         xdim <- length(unique(frame$RT1))
         ydim <- length(frame$RT2)/xdim
         sgn <- ldiff/abs(ldiff)*abs(round(ldiff/ydim))
-        # shifting columns if needed
         if (abs(ldiff)>(ydim-10)){
           if ((l2+sgn*ydim)>length(frame$TIC)){
             len1 <- length(c(l1+sgn*ydim):length(frame$TIC))
             df_list[[i]]$TIC[c((l1+sgn*ydim):length(frame$TIC))]<- cut[1:len1]
             ldiff <- ldiff-sgn*ydim
-          }
-          else{
+          } else{
             df_list[[i]]$TIC[c((l1+sgn*ydim):(l2+sgn*ydim))]<- cut
             ldiff <- ldiff-sgn*ydim
           }
         }
-        # shifting up and down in column
         if (ldiff>0){
           frame$TIC[c(l1:(l1+ldiff-1))]<-df_list[[i]]$TIC[c((l2+1):(l2+ldiff))]
           if ((l2+ldiff)>length(frame$TIC)){
             len1 <- length(c(l1+ldiff):length(frame$TIC))
             frame$TIC[c((l1+ldiff):length(frame$TIC))]<-cut[1:len1]
-          }
-          else{
+          } else{
             frame$TIC[c((l1+ldiff):(l2+ldiff))]<-cut
           }
-        }
-        else if (ldiff<0){
+        } else if (ldiff<0){
           frame$TIC[c((l2+ldiff+1):l2)]<-df_list[[i]]$TIC[c((l1+ldiff):(l1-1))]
           frame$TIC[c((l1+ldiff):(l2+ldiff))]<-cut
         }
 
         # Shift MS
-        # calculating distance
         t1 <- df_list[[i]]$`Overall Time Index`[l1]
         t2 <- df_list[[i]]$`Overall Time Index`[l2]
         loc1 <- which.min(abs(ms_list[[i]]$time_array-t1))
@@ -233,19 +252,21 @@ align <- function(data_list, THR=100000){
         times <- unique(ms_list[[i]][L1:L3,c(1,2,3)])
         new_t <- c()
         ldiff <- ldiff1-ldiff2
-        for (xx in 1:length(times$time_array)){
-          tloc <- which.min(abs(ms_list[[i]]$time_array-times$time_array[xx]-tdiff))
-          new_t <- rbind(new_t,ms_list[[i]][tloc,c(1,2,3)])
-        }
-        # shifting if column shift needed
+
+        suppressWarnings({
+        temp <- data.frame(xx = which.min(abs(ms_list[[i]]$time_array-times$time_array-tdiff)))
+        })
+        temp$tloc <- rownames(temp)
+        tloc <- temp[which(!is.na(temp$xx)),]
+        new_t <- rbind(new_t,ms_list[[i]][tloc$tloc,c(1,2,3)])
+
         if (abs(ldiff)>(ydim-10)){
           new_t2 <- c()
           rt1cut <- ms_list[[i]]$RT1[L1]
-          rt1s <- unique(ms_list[[i]]$RT1[sgn*ms_list[[i]]$RT1>sgn*rt1cut])
+          rt1s <- unique(ms_list[[i]]$RT1[sgn*ms_list[[i]]$RT1>=sgn*rt1cut])
           if (sgn>0){
             rt1s <- rt1s[1]
-          }
-          else if (sgn<0){
+          } else if (sgn<0){
             rt1s <- rt1s[length(rt1s)]
           }
           LL1 <- which(ms_list[[i]]$RT1==rt1s & ms_list[[i]]$RT2==ms_list[[i]]$RT2[L1])[1]
@@ -253,15 +274,18 @@ align <- function(data_list, THR=100000){
           LL3 <- LL2[length(LL2)]
           new_t2 <- ms_list[[i]][LL1:LL3,c(1,2,3)]
           new_t2 <- unique(new_t2)
+
+
           for (z in 1:length(times$time_array)){
             w1 <- which(times$time_array[z]==ms_list[[i]]$time_array)
             w2 <- which(new_t2$time_array[z]==ms_list[[i]]$time_array)
             ms_list[[i]][w1,c(1,2,3)] <- new_t2[z,]
             ms_list[[i]][w2,c(1,2,3)] <- times[z,]
           }
+
           ldiff <- ldiff-sgn*ydim
         }
-        # shifting up and down in column
+
         if (ldiff>0){
           # shift high times down
           for (z in c((length(times$time_array)+1-ldiff):length(times$time_array))){
@@ -269,8 +293,7 @@ align <- function(data_list, THR=100000){
             zz <- z-length(times$time_array)+ldiff
             new_ms[lloc,c(1,2,3)] <- times[zz,]
           }
-        }
-        else if (ldiff<0){
+        } else if (ldiff<0){
           # shift low times up
           for (z in c(1:(-ldiff))){
             lloc <- which(new_t$time_array[z]==ms_list[[i]]$time_array)
@@ -278,18 +301,15 @@ align <- function(data_list, THR=100000){
             new_ms[lloc,c(1,2,3)] <- times[zz,]
           }
         }
-        for (y in c(1:length(times$time_array))){
-          # shift peak times
-          loca <- which(ms_list[[i]]$time_array==times$time_array[y])
-          new_ms[loca,c(1,2,3)] <- new_t[y,]
-        }
 
+        hold <- data.frame(y = match(ms_list[[i]]$time_array, times$time_array))
+        hold$loca <- rownames(hold)
+        loca <- hold[which(!is.na(hold$y)),]
+
+        new_ms[loca$loca, c(1,2,3)] <- new_t[loca$y,]
       }
     }
-
     utils::setTxtProgressBar(pb,100)
-
-    # finalizing the list of data frames returned of the aligned data
     cp3 <- cp2[,c(1,2,3,8)]
     colnames(cp3) <- c('T','X','Y','Peak')
     frame$`Overall Time Index` <- frame$`Overall Time Index`*60
@@ -299,7 +319,7 @@ align <- function(data_list, THR=100000){
     aligned[[i+1]] <- list(frame,new_ms)
     names(aligned[[i+1]]) <- c('TIC_df','MS_df')
     cp3$T <- cp3$T*60
-    aligned$Peaks <- append(aligned$Peaks,list(cp3))
+    aligned$Peaks[[i+1]] <- cp3
     close(pb)
   } # end loop over i, samples being aligned
 

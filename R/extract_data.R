@@ -7,8 +7,8 @@
 #' data and closes the cdf file using the implemented function
 #' \code{\link[ncdf4]{nc_close}} from ncdf4 package
 #' \insertCite{ncdf4}{gcxgclab}. It then returns a list of two data frames. The
-#' first is a dataframe of the TIC data, the output of create_df(). The second
-#' is a data frame of the full MS data, the output of mass_data().
+#' first is a dataframe of the TIC data,and The second is a data frame of the
+#' full MS data.
 #'
 #' @references
 #' \insertAllCited{}
@@ -59,6 +59,18 @@ extract_data <- function(filename,mod_t=10,shift_time=TRUE){
   mod_t_exact <- round(mod_period / acq_rate, digits = 0) *acq_rate
   cycles_2D <- mod_t_exact/acq_rate
   cuts_2d <- N/cycles_2D
+  if (cuts_2d!=floor(cuts_2d)){
+    cuts_2d = floor(cuts_2d)
+    N=cuts_2d*cycles_2D
+    shift = shift[1:N]
+    point_count = point_count[1:N]
+    total_intensity = total_intensity[1:N]
+    N2 <- sum(point_count)
+    intensity_values = intensity_values[1:N2]
+    mass_values = mass_values[1:N2]
+    scan_acquisition_time = scan_acquisition_time[1:N]
+    message("Notice: Removing incomplete final column.")
+  }
   rt_2d <- shift[1:cycles_2D]
   rt_2d_array <- rep(rt_2d, times = cuts_2d)
   if (length(rt_2d_array)<N){
@@ -103,6 +115,44 @@ extract_data <- function(filename,mod_t=10,shift_time=TRUE){
 }
 
 
+#' @title  Extracts data from all cdf files in a folder.
+#'
+#' @description `batch_extract` Extracts the data from all cdf files in a folder.
+#'
+#' @details This function opens all cdf files in the specified folder path using
+#' extract_data().
+#'
+#' @references
+#' \insertAllCited{}
+#'
+#' @param path a \emph{string} object. The path of the folder containing  the
+#' cdf files to be opened. Default is the current working directory.
+#' @param mod_t a \emph{float} object. The modulation time for the GCxGC sample
+#' analysis. Default is 10.
+#' @param shift_time a \emph{boolean} object. Determines whether the Overall
+#' Time Index should be shifted to 0. Default is TRUE.
+#'
+#' @return A \emph{list} object. A list of the extracted data from each file.
+#' Each list item is a list of twSo data frames, TIC and full MS data.
+#'
+#' @examples
+#' folder <- system.file("extdata",package="gcxgclab")
+#' data_list <- batch_extract(folder,mod_t=.5)
+#'
+#' @export
+batch_extract <- function(path=".",mod_t = 10, shift_time = TRUE){
+  files <- list.files(path = path, pattern = '.cdf')
+  data_list <- list()
+  for (i in 1:length(files)){
+    filename <- paste0(path,'/',files[i])
+    data <- extract_data(filename,mod_t=mod_t,shift_time=shift_time)
+    data_list <- append(data_list,list(data))
+  }
+  names(data_list) <- files
+  return(data_list)
+}
+
+
 
 #' @title  Plot chromatogram
 #'
@@ -126,6 +176,10 @@ extract_data <- function(filename,mod_t=10,shift_time=TRUE){
 #' log plotting is 10^3.
 #' @param title a \emph{string} object. Title placed at the top of the plot.
 #' Default title "Intensity".
+#' @param xlab a \emph{string} object. Label for the x axis. Default is
+#' "retention time 1".
+#' @param ylab a \emph{string} object. Label for the y axis. Default is
+#' "retention time 2".
 #'
 #' @return A \emph{ggplot} object. A contour plot of TIC data plotted in two
 #' dimensional retention time.
@@ -137,7 +191,7 @@ extract_data <- function(filename,mod_t=10,shift_time=TRUE){
 #' plot_chr(frame, title='Log Intensity')
 #'
 #' @export
-plot_chr <- function(data,scale="log",dim=2,floor=-1,title="Intensity"){
+plot_chr <- function(data,scale="log",dim=2,floor=-1,title="Intensity",xlab="retention time 1",ylab="retention time 2"){
   frame <- data[[1]]
   time_array <- frame$'Overall Time Index'
   TIC <- frame$'TIC'
@@ -205,12 +259,20 @@ plot_chr <- function(data,scale="log",dim=2,floor=-1,title="Intensity"){
     A <- ggplot2::scale_fill_viridis_c()
   }
 
+  imin <- min(frame$TIC)
+  imax <- max(frame$TIC)
+  if (floor(log(imin,10))==floor(log(imax,10))){
+    di <- (imax-imin)/4
+    breaks <- c(imin,imin+di,imin+2*di,imin+2*di,imax)
+    labels <- round(log(breaks,10),1)
+    A <- ggplot2::scale_fill_viridis_c(breaks=log(breaks,10),labels=labels)
+  }
+
   if (dim==2){
     fig <- ggplot2::ggplot(frame, ggplot2::aes(x=RT1, y=RT2, fill=z)) +
       ggplot2::geom_tile() +
       A +
-      ggplot2::labs(title= title, x='retention time 1',
-                    y= 'retention time 2', fill= str)+
+      ggplot2::labs(title= title, x=xlab,y=ylab, fill= str)+
       ggplot2::theme(plot.title=ggplot2::element_text(hjust=0.5))+
       ggplot2::scale_x_continuous(expand = c(0, 0)) +
       ggplot2::scale_y_continuous(expand = c(0, 0)) +

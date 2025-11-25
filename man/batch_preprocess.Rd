@@ -12,6 +12,9 @@ batch_preprocess(
   gamma = 0.5,
   subtract = NULL,
   THR = 10^5,
+  do_align = TRUE,
+  use_ref_peak = TRUE,
+  ref_peak = 92.1397,
   images = FALSE
 )
 }
@@ -41,6 +44,17 @@ data.}
 \item{THR}{a \emph{float} object. Threshold for peak intensity for peak
 alignment. Should be a number between the baseline value and the highest peak
 intensity. Default is THR = 100000.}
+
+\item{do_align}{a \emph{boolean} object. An optional input allowing the user
+to skip alignment of the given data files if alignment is not needed. Default
+is TRUE.}
+
+\item{use_ref_peak}{a \emph{boolean} object. Determines if an initial shift
+to a given reference peak, default is toluene, should be done before aligning
+all other peaks above given threshold THR. Default is TRUE.}
+
+\item{ref_peak}{a \emph{float} object. The m/z value of the reference peak
+for optional initial shift. Default is 92.1397 (toluene).}
 
 \item{images}{a \emph{boolean} object. An optional input. If TRUE, all images
 of preprocessing steps will be displayed. Default is FALSE, no images will be

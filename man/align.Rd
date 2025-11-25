@@ -4,7 +4,7 @@
 \alias{align}
 \title{Reference Batch Align}
 \usage{
-align(data_list, THR = 1e+05)
+align(data_list, THR = 1e+05, use_ref_peak = TRUE, ref_peak = 92.1397)
 }
 \arguments{
 \item{data_list}{a \emph{list} object. Data extracted from each cdf file,
@@ -13,6 +13,13 @@ ideally the output from extract_data().}
 \item{THR}{a \emph{float} object. Threshold for peak intensity. Should be a
 number between the baseline value and the highest peak intensity. Default
 is THR = 100000.}
+
+\item{use_ref_peak}{a \emph{boolean} object. Determines if an initial shift
+to a given reference peak, default is toluene, should be done before aligning
+all other peaks above given threshold THR. Default is TRUE.}
+
+\item{ref_peak}{a \emph{float} object. The m/z value of the reference peak
+for optional initial shift. Default is 92.1397 (toluene).}
 }
 \value{
 A \emph{list} object. List of aligned data from each cdf file and a

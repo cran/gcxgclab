@@ -66,7 +66,12 @@ thr_peaks <- function(TIC_df, THR=100000){
   dec_t <- c()
 
   loc2 <- which(dec_maxs<THR)
-  N  <- loc2[1]-1
+  if(length(loc2>0)){
+    N  <- loc2[1]-1
+  }
+  else{
+    N <- length(dec_maxs)
+  }
   for (i in 1:N){
     loc <- which(maxs==dec_maxs[i])[1]
     dec_x <- c(dec_x,xcoords[loc])
@@ -167,6 +172,10 @@ top_peaks <- function(TIC_df, N){
 #' background GCxGC plot, created with plot_chr().
 #' @param title a \emph{string} object. Title placed at the top of the plot.
 #' Default title "Intensity with Peaks".
+#' @param xlab a \emph{string} object. Label for the x axis. Default is
+#' "retention time 1".
+#' @param ylab a \emph{string} object. Label for the y axis. Default is
+#' "retention time 2".
 #' @param circlecolor a \emph{string} object. The desired color of the circles
 #' which indicate the peaks. Default color red.
 #' @param circlesize a \emph{double} object. The size of the circles which
@@ -182,12 +191,12 @@ top_peaks <- function(TIC_df, N){
 #' plot_peak(peaks, frame, title="Top 20 Peaks")
 #'
 #' @export
-plot_peak <- function(peaks, data, title='Intensity with Peaks',
+plot_peak <- function(peaks, data, title='Intensity with Peaks',xlab="retention time 1",ylab="retention time 2",
                       circlecolor="red", circlesize=5){
   frame <- data[[1]]
   X <- peaks$'X'
   Y <- peaks$'Y'
-  peak_fig <- plot_chr(data,title=title,scale='log') +
+  peak_fig <- plot_chr(data,title=title,xlab=xlab,ylab=ylab,scale='log') +
                 ggplot2::geom_point(data=peaks, ggplot2::aes(x=X,y=Y),
                 color=circlecolor, size=circlesize, shape=1, fill=NA)
   return(peak_fig)

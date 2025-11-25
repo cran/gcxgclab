@@ -1,6 +1,6 @@
 Package: gcxgclab
 Title: GCxGC Preprocessing and Analysis
-Version: 1.0.1
+Version: 1.1.0
 Authors@R: c(
     person("Stephanie", "Gamble", ,"stephanie.gamble@srnl.doe.gov", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0001-7209-0891")),
@@ -12,7 +12,7 @@ Authors@R: c(
 Description: Provides complete detailed preprocessing of two-dimensional gas chromatogram (GCxGC) samples. Baseline correction, smoothing, peak detection, and peak alignment. Also provided are some analysis functions, such as finding extracted ion chromatograms, finding mass spectral data, targeted analysis, and nontargeted analysis with either the 'National Institute of Standards and Technology Mass Spectral Library' or with the mass data. There are also several visualization methods provided for each step of the preprocessing and analysis.
 License: GPL (>= 3)
 Encoding: UTF-8
-RoxygenNote: 7.2.1
+RoxygenNote: 7.3.3
 Depends: R (>= 4.2.0)
 Imports: ncdf4 (>= 1.19.0), dplyr (>= 1.0.8), ggplot2 (>= 3.3.5), ptw
         (>= 1.9.16), stats (>= 4.2.0), utils (>= 4.2.0), nilde (>=
@@ -22,12 +22,13 @@ RdMacros: Rdpack
 Suggests: knitr, rmarkdown
 VignetteBuilder: knitr
 NeedsCompilation: no
-Packaged: 2024-01-19 21:05:23 UTC; k9638
-Author: Stephanie Gamble [aut, cre] (<https://orcid.org/0000-0001-7209-0891>),
+Packaged: 2025-11-25 19:13:27 UTC; k9638
+Author: Stephanie Gamble [aut, cre] (ORCID:
+    <https://orcid.org/0000-0001-7209-0891>),
   Mannion Joseph [ctb],
   Granger Caroline [ctb],
   Battelle Savannah River Alliance [cph],
   NNSA, US DOE [fnd]
 Maintainer: Stephanie Gamble <stephanie.gamble@srnl.doe.gov>
 Repository: CRAN
-Date/Publication: 2024-01-22 14:10:06 UTC
+Date/Publication: 2025-11-25 19:32:03 UTC

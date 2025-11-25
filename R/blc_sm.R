@@ -306,9 +306,18 @@ preprocess <- function(filename,mod_t=10,shift=0,lambda=20,gamma=0.5,
 #' @param THR a \emph{float} object. Threshold for peak intensity for peak
 #' alignment. Should be a number between the baseline value and the highest peak
 #' intensity. Default is THR = 100000.
+#' @param do_align a \emph{boolean} object. An optional input allowing the user
+#' to skip alignment of the given data files if alignment is not needed. Default
+#' is TRUE.
+#' @param use_ref_peak a \emph{boolean} object. Determines if an initial shift
+#' to a given reference peak, default is toluene, should be done before aligning
+#' all other peaks above given threshold THR. Default is TRUE.
+#' @param ref_peak a \emph{float} object. The m/z value of the reference peak
+#' for optional initial shift. Default is 92.1397 (toluene).
 #' @param images a \emph{boolean} object. An optional input. If TRUE, all images
 #' of preprocessing steps will be displayed. Default is FALSE, no images will be
 #' displayed.
+#'
 #'
 #' @return A \emph{data.frame} object. A list of pairs of data frames. A TIC
 #' data frame and an MS data frame for each file.
@@ -319,15 +328,20 @@ preprocess <- function(filename,mod_t=10,shift=0,lambda=20,gamma=0.5,
 #'
 #' @export
 batch_preprocess <- function(path=".",mod_t=10,shift=0,lambda=20,gamma=0.5,
-                             subtract=NULL,THR=10^5,images=FALSE){
+                             subtract=NULL,THR=10^5,do_align=TRUE,
+                             use_ref_peak=TRUE,ref_peak=92.1397,images=FALSE){
   files <- list.files(path=path, pattern='.cdf')
   if (length(files)==0){
     stop('There are no cdf data files in this directory.')
   }
   if (length(files)==1){
-    message('There is only one cdf data file in this directory. No aligment possible.')
-    return(gcxgclab::preprocess(files[1]),shift=shift,lambda=lambda,gamma=gamma,
-           subtract=subtract,images=images)
+    if(do_align){
+      message('There is only one cdf data file in this directory. No aligment possible.')
+    }
+    dfs <- list(gcxgclab::preprocess(files[1],shift=shift,lambda=lambda,gamma=gamma,
+                                     subtract=subtract,images=images))
+    names(dfs) <- files
+    return(dfs)
   }
   else{
     dfs <- list()
@@ -342,7 +356,12 @@ batch_preprocess <- function(path=".",mod_t=10,shift=0,lambda=20,gamma=0.5,
       if (images){ print(fig2)}
       dfs <- append(dfs,list(data))
     }
-    aligned <- align(dfs,THR=THR)
+    if(do_align){
+      aligned <- align(dfs,THR=THR,use_ref_peak=use_ref_peak,ref_peak=ref_peak)
+    }
+    else{
+      aligned <- dfs
+    }
     for (i in 1:length(files)){
       data <- aligned[[i]]
       if (shift!=0){
@@ -372,8 +391,8 @@ batch_preprocess <- function(path=".",mod_t=10,shift=0,lambda=20,gamma=0.5,
     }
     message('Complete.')
   }
+  names(dfs) <- files
   return(dfs)
-
 }
 
 # ©2022 Battelle Savannah River Alliance, LLC

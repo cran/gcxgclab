@@ -4,7 +4,15 @@
 \alias{plot_chr}
 \title{Plot chromatogram}
 \usage{
-plot_chr(data, scale = "log", dim = 2, floor = -1, title = "Intensity")
+plot_chr(
+  data,
+  scale = "log",
+  dim = 2,
+  floor = -1,
+  title = "Intensity",
+  xlab = "retention time 1",
+  ylab = "retention time 2"
+)
 }
 \arguments{
 \item{data}{a \emph{list} object. Data extracted from a cdf file,
@@ -22,6 +30,12 @@ log plotting is 10^3.}
 
 \item{title}{a \emph{string} object. Title placed at the top of the plot.
 Default title "Intensity".}
+
+\item{xlab}{a \emph{string} object. Label for the x axis. Default is
+"retention time 1".}
+
+\item{ylab}{a \emph{string} object. Label for the y axis. Default is
+"retention time 2".}
 }
 \value{
 A \emph{ggplot} object. A contour plot of TIC data plotted in two

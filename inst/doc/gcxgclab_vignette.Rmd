@@ -34,11 +34,13 @@ install.packages("gcxgclab")
 
 If using gcxgclab in your work, please cite us.
 
-Gamble, Stephanie & Granger, Caroline & Mannion, Joseph. gcxgclab: An R-package for two dimensional gas chromatography preprocessing and analysis. *in preparation*. 2024.
+Gamble, Stephanie & Granger, Caroline & Mannion, Joseph. gcxgclab: An R-package for two dimensional gas chromatography preprocessing and analysis. *Anal. Chem.* 2024, 96, 43, 17059–17064, https://doi.org/10.1021/acs.analchem.4c03126
 
 ## Example
 
-Provided here is an example of the work flow to fully process and analyze an example GCxGC sample.  
+Provided here is an example of the work flow to fully process and analyze an example GCxGC sample. The data used in this example is available for download here: https://doi.org/10.6084/m9.figshare.26060830.v1
+
+### 1. Preprocessing  
   
 First, load the package.
 
@@ -180,6 +182,17 @@ for (i in 1:3){
 <img src="../man/figures/al2.png" width="50%" />
 <img src="../man/figures/al3.png" width="50%" />
 
+For experienced users, batch extraction and preprocessing functions are available. Note that the preprocessing() and batch_preprocessing perform the data extraction; the input should be the raw data file name or folder path.
+
+``` r
+preprocessed_sample <- preprocess(filename)
+folder <- system.file('extdata',package='gcxgclab')
+batch_raw_data <- batch_extract(folder)
+preprocessed_batch <- batch_preprocess(folder)
+```
+
+### 2. Analysis
+
 In the analysis of this data, there are many times where fitting to a Gaussian curve is used. Fitting the highest peak in the sample to a 1D Gaussian curve. The area under the curve is calculated. Plot of points in blue and fitted curve in red.
 
 ``` r
@@ -208,6 +221,16 @@ plot_gauss2(frame$TIC_df, gaussfit2[[1]])
 ```
 
 <img src="../man/figures/gauss2.png" width="50%" />
+
+The area of the entire TIC can also be calculated, flattened in 1 time dimension. Optional start and dending times can be specified if not the entire dataset.
+
+``` r
+TIC_integrate(frame)
+```
+
+The area for this sample is:
+
+	#> 47708261
 
 Finding extracted ion chromatogram (EIC) for the specific masses of interest 141.9274 u. EIC visualization can be done in 1 or 2 dimensions.
 
